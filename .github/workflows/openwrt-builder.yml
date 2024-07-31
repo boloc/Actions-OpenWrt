@@ -22,6 +22,7 @@ on:
   workflow_dispatch:
 
 env:
+  REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
   FEEDS_CONF: feeds.conf.default
@@ -162,7 +163,7 @@ jobs:
         uses: softprops/action-gh-release@master # https://github.com/softprops/action-gh-release
         if: steps.tag.outputs.status == 'success' && !cancelled()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           body_path: release.txt
@@ -185,4 +186,4 @@ jobs:
           keep_latest: 3 # 指定要保留的最新版本
           delete_tags: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
