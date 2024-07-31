@@ -86,12 +86,14 @@ jobs:
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P1_SH
 
-      - name: Update feeds
-        run: cd openwrt && ./scripts/feeds update -a
+      # 更新 feeds
+      - name: Update & Install feeds
+        working-directory: ./openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
-      - name: Install feeds
-        run: cd openwrt && ./scripts/feeds install -a
-
+      # 加载配置
       - name: Load custom configuration
         run: |
           [ -e files ] && mv files openwrt/files
@@ -110,6 +112,7 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
+      # 下载 dl 库，编译固件
       - name: Compile the firmware
         id: compile
         working-directory: ./openwrt
@@ -125,12 +128,12 @@ jobs:
         if: (!cancelled())
         run: df -hT
 
-      - name: Upload bin directory
-        uses: actions/upload-artifact@main # https://github.com/actions/upload-artifact
-        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-        with:
-          name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-          path: openwrt/bin
+      # - name: Upload bin directory
+      #   uses: actions/upload-artifact@main # https://github.com/actions/upload-artifact
+      #   if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      #   with:
+      #     name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+      #     path: openwrt/bin
 
       - name: Organize files
         id: organize
