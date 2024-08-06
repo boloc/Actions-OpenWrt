@@ -136,10 +136,11 @@ jobs:
 
       # 删除多余内容
       - name: Organize files
+        working-directory: ./openwrt
         id: organize
         if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
-          cd openwrt/bin/targets/*/*
+          cd ./bin/targets/*/*
           rm -rf packages *.buildinfo *.manifest *.bin sha256sums
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
