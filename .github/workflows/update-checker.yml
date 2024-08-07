@@ -18,8 +18,8 @@ env:
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: 0 */18 * * *
+  schedule:
+    - cron: 0 */18 * * *
 
 jobs:
   check:
@@ -34,7 +34,7 @@ jobs:
 
       - name: Compare Commit Hash
         id: cacheHash
-        uses: actions/cache@v3
+        uses: actions/cache@main # https://github.com/actions/cache
         with:
           path: .commitHash
           key: commitHash_${{ steps.getHash.outputs.commitHash }}
@@ -59,3 +59,13 @@ jobs:
           repository: ${{ github.repository }}
           retain_days: 2
           keep_minimum_runs: 2
+
+      # 移除老版本releases
+      - name: Remove old Releases
+        uses: dev-drprasad/delete-older-releases@master # https://github.com/dev-drprasad/delete-older-releases (项目已经不再维护,但是没更好的替代)
+        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+        with:
+          keep_latest: 3 # 指定要保留的最新版本
+          delete_tags: true # 删除tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
