@@ -24,6 +24,8 @@ on:
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
+  KUCAT_URL: https://github.com/sirpdboy/luci-theme-kucat.git
+  KUCAT_BRANCH: js
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
@@ -69,6 +71,12 @@ jobs:
           df -hT $PWD
           git clone $REPO_URL -b $REPO_BRANCH openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+      # 下载kucat主题(暂放lean中后面有空自己配)
+      - name: Clone KUCAT Theme
+        working-directory: ./openwrt/package/lean
+        run: |
+          git clone $KUCAT_URL -b $KUCAT_BRANCH
 
       # 缓存，加快openwrt编译
       - name: Cache
