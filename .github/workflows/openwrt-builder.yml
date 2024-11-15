@@ -11,7 +11,7 @@
 #
 # @docs https://p3terx.com/archives/build-openwrt-with-github-actions.html
 
-name: OpenWrt Builder
+name: TigWrt Builder
 
 # on:
 #   push:
@@ -25,7 +25,7 @@ env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
   KUCAT_URL: https://github.com/sirpdboy/luci-theme-kucat.git
-  KUCAT_BRANCH: js
+  KUCAT_BRANCH: main
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
@@ -74,9 +74,9 @@ jobs:
 
       # 下载kucat主题(暂放lean中后面有空自己配)
       - name: Clone KUCAT Theme
-        working-directory: ./openwrt/package/lean
+        working-directory: ./openwrt/package/tigWrt
         run: |
-          git clone $KUCAT_URL -b $KUCAT_BRANCH
+          git clone $KUCAT_URL -b $KUCAT_BRANCH luci-theme-kucat
 
       # 缓存，加快openwrt编译
       - name: Cache
