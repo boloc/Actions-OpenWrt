@@ -74,8 +74,9 @@ jobs:
 
       # 创建tigWrt目录
       - name: Create tigWrt directory
+        working-directory: ./openwrt
         run: |
-          mkdir -p ./openwrt/package/tigWrt
+          mkdir -p ./package/tigWrt
 
       # 下载kucat主题(放入tigWrt目录)
       - name: Clone KUCAT Theme
