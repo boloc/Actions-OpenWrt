@@ -72,7 +72,12 @@ jobs:
           git clone $REPO_URL -b $REPO_BRANCH openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-      # 下载kucat主题(暂放lean中后面有空自己配)
+      # 创建tigWrt目录
+      - name: Create tigWrt directory
+        run: |
+          mkdir -p ./openwrt/package/tigWrt
+
+      # 下载kucat主题(放入tigWrt目录)
       - name: Clone KUCAT Theme
         working-directory: ./openwrt/package/tigWrt
         run: |
