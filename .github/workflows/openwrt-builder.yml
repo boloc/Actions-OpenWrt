@@ -30,6 +30,7 @@ env:
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
+  # DIY_PACKAGE_SH: diy-package.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -97,8 +98,9 @@ jobs:
         run: |
           [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
           chmod +x $DIY_P1_SH
+          mv $DIY_P1_SH openwrt/$DIY_P1_SH
           cd openwrt
-          $GITHUB_WORKSPACE/$DIY_P1_SH
+          $DIY_P1_SH
 
       # 更新 feeds
       - name: Update & Install feeds
@@ -147,6 +149,13 @@ jobs:
           rm -rf packages *.buildinfo *.manifest *.bin sha256sums
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
+
+      # # 打包root.tar.gz lxc使用
+      # - name: Lxc CT package
+      #   id: packageLXC
+      #   if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      #   run: |
+      #     chmod +x $DIY_PACKAGE_SH
 
       - name: Upload firmware directory
         uses: actions/upload-artifact@main
