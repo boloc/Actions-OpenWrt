@@ -154,6 +154,7 @@ jobs:
         id: packageLXC
         if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
+          chmod +x $DIY_TAR_SH
           cd openwrt/bin/targets/*/*
           $GITHUB_WORKSPACE/$DIY_TAR_SH
 
