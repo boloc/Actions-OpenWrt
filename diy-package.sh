@@ -56,9 +56,10 @@ cd $GITHUB_WORKSPACE  # 返回到工作流的根目录
 
 # 在挂载的目录中执行操作，这里进行打包为 ct 模板
 echo "Creating ct template..."
-tar -czf ./$tar_file -C /mnt/img . # 将打包文件保存到指定目录
+sudo  tar -czf ./$tar_file -C /mnt/img . # 将打包文件保存到指定目录
 
 # 卸载&删除挂载点
 echo "Unmounting $img_file"
+sudo rm "$img_file" # 删除原始文件
 sudo umount /mnt/img
 sudo rmdir /mnt/img
