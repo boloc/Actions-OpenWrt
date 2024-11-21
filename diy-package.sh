@@ -52,11 +52,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # 返回到工作目录（假设是 GitHub Actions 的工作空间）
-cd $GITHUB_WORKSPACE  # 返回到工作流的根目录
+# cd $GITHUB_WORKSPACE  # 返回到工作流的根目录
 
 # 在挂载的目录中执行操作，这里进行打包为 ct 模板
 echo "Creating ct template..."
-sudo  tar -czf ./$tar_file -C /mnt/img . # 将打包文件保存到指定目录
+sudo  tar -czf $GITHUB_WORKSPACE/openwrt/bin/targets/*/*/$tar_file -C /mnt/img . # 将打包文件保存到指定目录
 
 # 卸载&删除挂载点
 echo "Unmounting $img_file"
