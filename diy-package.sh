@@ -32,7 +32,7 @@ if ! command -v gunzip &>/dev/null; then
     fi
 fi
 
-# gunzip -kf "$file"  # 解压文件并保留原文件
+gunzip -kf "$file"  # 解压文件并保留原文件
 # 获取解压后的 img 文件名
 img_file="${file%.gz}"
 
