@@ -8,6 +8,3 @@
 # 编译passwall2
 sed -i '$a src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main' feeds.conf.default
 sed -i '$a src-git passwall https://github.com/xiaorouji/openwrt-passwall2.git;main' feeds.conf.default
-
-# 编译argon主题
-git clone https://github.com/jerrykuku/luci-theme-argon.git ./package/luci-theme-argon

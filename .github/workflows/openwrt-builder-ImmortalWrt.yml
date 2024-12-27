@@ -14,6 +14,7 @@ on:
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: openwrt-23.05
+  ARGON_URL: https://github.com/jerrykuku/luci-theme-argon.git
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
@@ -62,11 +63,11 @@ jobs:
           git clone $REPO_URL -b $REPO_BRANCH openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-      # 创建tigWrt目录
-      - name: Create tigWrt directory
-        working-directory: ./openwrt
+      # 下载argon主题
+      - name: Clone ARGON Theme
+        working-directory: ./openwrt/package
         run: |
-          mkdir -p ./package/tigWrt
+          git clone $ARGON_URL luci-theme-argon
 
       # 缓存，加快openwrt编译
       - name: Cache
