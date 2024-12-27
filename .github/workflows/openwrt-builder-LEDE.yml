@@ -11,15 +11,18 @@
 #
 # @docs https://p3terx.com/archives/build-openwrt-with-github-actions.html
 
-name: TigWrt Builder
+name: TigWrt Builder from LEDE
 
 # on:
 #   push:
 #     branches:
 #       - main
 on:
-  repository_dispatch:
   workflow_dispatch:
+  # repository_dispatch:
+  #   # 通过外部事件[Source Code Update LEDE]触发构建LEDE脚本
+  #   types: [Source Code Update LEDE]
+
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
@@ -30,7 +33,7 @@ env:
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
-  # DIY_PACKAGE_SH: diy-package.sh
+  DIY_TAR_SH: diy-package.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -38,7 +41,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -47,6 +50,7 @@ jobs:
       # 配置环境
       - name: Initialization environment
         env:
+          # 非交互式安装()
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -150,12 +154,15 @@ jobs:
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
 
-      # # 打包root.tar.gz lxc使用
-      # - name: Lxc CT package
-      #   id: packageLXC
-      #   if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
-      #   run: |
-      #     chmod +x $DIY_PACKAGE_SH
+      #  构建lxc tar包
+      - name: package tar
+        id: packageLXC
+        if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+        run: |
+          chmod +x $DIY_TAR_SH
+          cd openwrt/bin/targets/*/*
+          $GITHUB_WORKSPACE/$DIY_TAR_SH
+
 
       - name: Upload firmware directory
         uses: actions/upload-artifact@main
