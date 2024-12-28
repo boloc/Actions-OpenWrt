@@ -35,7 +35,7 @@ jobs:
       # 配置环境
       - name: Initialization environment
         env:
-          # 非交互式安装()
+          # 非交互式安装
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -147,8 +147,14 @@ jobs:
         run: |
           echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
-          [ ${UPLOAD_GOFILE} = true ] && [ -n "${{ steps.gofile.outputs.url }}" ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Debug upload parameters
+        run: |
+          echo "Tag Name: ${{ steps.tag.outputs.release_tag }}"
+          echo "Body Path: release.txt"
+          echo "Files to upload:"
+          ls -la ${{ env.FIRMWARE }}/*
 
       - name: Upload firmware to release
         uses: softprops/action-gh-release@master # https://github.com/softprops/action-gh-release
@@ -159,6 +165,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           body_path: release.txt
           files: ${{ env.FIRMWARE }}/*
+          if: ${{ env.FIRMWARE }} != ''
 
       # 清除工作流
       - name: Delete workflow runs
@@ -178,3 +185,8 @@ jobs:
           delete_tags: true # 删除tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List firmware files
+        run: |
+          echo "Listing files in firmware directory:"
+          ls -la ${{ env.FIRMWARE }}
