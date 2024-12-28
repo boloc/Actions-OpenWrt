@@ -153,11 +153,15 @@ jobs:
         run: |
           echo "Tag Name: ${{ steps.tag.outputs.release_tag }}"
           echo "Body Path: release.txt"
-          echo "Files to upload:"
+          echo "FIRMWARE path: ${{ env.FIRMWARE }}"
           ls -la ${{ env.FIRMWARE }}/*
 
+
+      # 上传固件到发布
       - name: Upload firmware to release
-        uses: softprops/action-gh-release@master # https://github.com/softprops/action-gh-release
+        # (2024-12-28为止,master版本有问题,v2版本正常，具体看issue)
+        # uses: softprops/action-gh-release@master # https://github.com/softprops/action-gh-release
+        uses: softprops/action-gh-release@v2 # https://github.com/softprops/action-gh-release
         if: steps.tag.outputs.status == 'success' && !cancelled()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -165,7 +169,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           body_path: release.txt
           files: ${{ env.FIRMWARE }}/*
-          if: ${{ env.FIRMWARE }} != ''
+          # verbose: true # 添加 verbose 选项以获取更多调试信息
 
       # 清除工作流
       - name: Delete workflow runs
