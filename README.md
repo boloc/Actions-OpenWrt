@@ -6,7 +6,6 @@
 
 使用 GitHub Actions 构建 OpenWrt
 
-
 ## License
 
 [MIT](https://github.com/P3TERX/Actions-OpenWrt/blob/main/LICENSE) © [**P3TERX**](https://p3terx.com)
