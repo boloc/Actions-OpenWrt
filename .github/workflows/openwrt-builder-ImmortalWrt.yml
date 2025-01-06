@@ -5,9 +5,13 @@ name: TigWrt Builder From ImmortalWrt
 #     branches:
 #       - main
 on:
+  # 手动触发
   workflow_dispatch:
+  # 定时触发
+  schedule:
+    - cron: 0 */72 * * *
+  # 通过外部事件[Source Code Update ImmortalWrt]触发构建ImmortalWrt脚本
   repository_dispatch:
-    # 通过外部事件[Source Code Update ImmortalWrt]触发构建ImmortalWrt脚本
     types: [Source Code Update ImmortalWrt]
 
 
