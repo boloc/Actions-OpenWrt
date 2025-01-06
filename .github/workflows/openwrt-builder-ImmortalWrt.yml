@@ -20,7 +20,6 @@ env:
   REPO_BRANCH: openwrt-23.05
   ARGON_URL: https://github.com/jerrykuku/luci-theme-argon.git
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
@@ -31,6 +30,14 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: x86
+            config: .config.x86
+          # - device: r2s
+          #   config: .config.r2s
 
     steps:
       - name: Checkout
@@ -100,7 +107,7 @@ jobs:
       - name: Load custom configuration
         run: |
           [ -e files ] && mv files openwrt/files
-          [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+          [ -e ${{ matrix.config }} ] && mv ${{ matrix.config }} openwrt/.config
           chmod +x $DIY_P2_SH
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P2_SH
@@ -141,7 +148,7 @@ jobs:
         uses: actions/upload-artifact@main
         if: steps.organize.outputs.status == 'success' && !cancelled()
         with:
-          name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          name: OpenWrt_firmware_${{ matrix.device }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
           path: ${{ env.FIRMWARE }}
 
       # 创建版本releases
@@ -149,7 +156,7 @@ jobs:
         id: tag
         if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         run: |
-          echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+          echo "release_tag=ImmortalWrt_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
