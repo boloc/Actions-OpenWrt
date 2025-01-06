@@ -10,6 +10,8 @@
 # 编译passwall2
 sed -i '$a src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main' feeds.conf.default
 sed -i '$a src-git passwall https://github.com/xiaorouji/openwrt-passwall2.git;main' feeds.conf.default
+# 编译mihomo
+sed -i '$a src-git mihomo https://github.com/morytyann/OpenWrt-mihomo.git;main' feeds.conf.default
 
-# 编译turboacc加速
+# 编译turboacc加速(https://github.com/chenmozhijin/turboacc)
 curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh --no-sfe
