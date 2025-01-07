@@ -36,8 +36,8 @@ jobs:
         include:
           - device: x86
             config: .config.x86
-          # - device: r2s
-          #   config: .config.r2s
+          - device: R4SE
+            config: .config.R4SE
 
     steps:
       - name: Checkout
