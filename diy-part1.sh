@@ -14,4 +14,4 @@ sed -i '$a src-git passwall https://github.com/xiaorouji/openwrt-passwall2.git;m
 sed -i '$a src-git mihomo https://github.com/morytyann/OpenWrt-mihomo.git;main' feeds.conf.default
 
 # 编译turboacc加速(https://github.com/chenmozhijin/turboacc)
-curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh --no-sfe
+# curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh --no-sfe
