@@ -20,6 +20,7 @@ env:
   REPO_BRANCH: openwrt-23.05
   ARGON_URL: https://github.com/jerrykuku/luci-theme-argon.git
   FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: .config.x86
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
@@ -30,14 +31,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - device: x86
-            config: .config.x86
-          - device: R4SE
-            config: .config.R4SE
 
     steps:
       - name: Checkout
@@ -108,7 +101,7 @@ jobs:
       - name: Load custom configuration
         run: |
           [ -e files ] && mv files openwrt/files
-          [ -e ${{ matrix.config }} ] && mv ${{ matrix.config }} openwrt/.config
+          [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
           chmod +x $DIY_P2_SH
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P2_SH
@@ -120,8 +113,6 @@ jobs:
         # 添加工具链初始化步骤
         run: |
           make defconfig
-          make tools/install -j1 || make tools/install -j1 V=s
-          make toolchain/install -j1 || make toolchain/install -j1 V=s
           make download -j$(nproc)
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
