@@ -95,6 +95,7 @@ jobs:
           ccache: 'true' # 检查是否缓存 ccache
           #清空缓存
           clean: "false" # 'false' 默认值
+          mixkey: 'X86'
           prefix: ${{ github.workspace }}/openwrt
 
       - name: Load custom feeds
