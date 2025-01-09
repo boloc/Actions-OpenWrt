@@ -113,6 +113,8 @@ jobs:
         # 添加工具链初始化步骤
         run: |
           make defconfig
+          echo "当前编译目标配置："
+          cat .config | grep "CONFIG_TARGET" || true
           make download -j$(nproc)
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
@@ -123,6 +125,10 @@ jobs:
         working-directory: ./openwrt
         run: |
           echo -e "$(nproc) thread compile"
+          make clean
+          make defconfig
+          make tools/install -j1 || make tools/install -j1 V=s
+          make toolchain/install -j1 || make toolchain/install -j1 V=s
           make -j$(nproc) || make -j1 || make -j1 V=s
           echo "status=success" >> $GITHUB_OUTPUT
           grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME

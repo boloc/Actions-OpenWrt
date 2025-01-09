@@ -113,6 +113,8 @@ jobs:
         # 添加工具链初始化步骤
         run: |
           make defconfig
+          echo "当前编译目标配置："
+          cat .config | grep "CONFIG_TARGET" || true
           make download -j$(nproc)
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
