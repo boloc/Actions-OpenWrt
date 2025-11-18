@@ -32,6 +32,15 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      # 合并磁盘空间，释放更多构建空间（避免磁盘爆满）
+      # 必须在 checkout 之前执行，否则会清空 workspace
+      - name: Combine disks
+        uses: easimon/maximize-build-space@master
+        with:
+          swap-size-mb: 1024
+          temp-reserve-mb: 100
+          root-reserve-mb: 1024
+
       - name: Checkout
         uses: actions/checkout@main
 
@@ -41,14 +50,6 @@ jobs:
           ls -la $GITHUB_WORKSPACE/
           echo "=== All .sh files ==="
           find $GITHUB_WORKSPACE -name "*.sh" -type f
-
-      # 合并磁盘空间，释放更多构建空间（避免磁盘爆满）
-      - name: Combine disks
-        uses: easimon/maximize-build-space@master
-        with:
-          swap-size-mb: 1024
-          temp-reserve-mb: 100
-          root-reserve-mb: 1024
 
       - name: Check Server Performance
         run: |
