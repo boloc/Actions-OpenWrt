@@ -1,28 +1,27 @@
-name: TigWrt Builder From ImmortalWrt-R4SE
+name: OpenWrt Builder From ImmortalWrt-R4SE-master
 
-# on:
-#   push:
-#     branches:
-#       - main
 on:
   # 手动触发
   workflow_dispatch:
   # 定时触发
-  schedule:
-    - cron: 0 */72 * * *
+  # schedule:
+  #   - cron: '0 */72 * * *'
   # 通过外部事件[Source Code Update ImmortalWrt]触发构建ImmortalWrt脚本
   repository_dispatch:
     types: [Source Code Update ImmortalWrt]
 
+# 避免同一分支重复排队，新的构建会自动取消旧的
+concurrency:
+  group: r4se-master-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-23.05
-  # ARGON_URL: https://github.com/jerrykuku/luci-theme-argon.git
+  REPO_BRANCH: master
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: .config.R4SE
-  DIY_P1_SH: diy-part1.sh
-  DIY_P2_SH: diy-part2.sh
+  DIY_P1_SH: diy-r4se-master-p1.sh
+  DIY_P2_SH: diy-r4se-master-p2.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -30,11 +29,19 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@main
+
+      # 合并磁盘空间，释放更多构建空间（避免磁盘爆满）
+      - name: Combine disks
+        uses: easimon/maximize-build-space@master
+        with:
+          swap-size-mb: 1024
+          temp-reserve-mb: 100
+          root-reserve-mb: 1024
 
       - name: Check Server Performance
         run: |
@@ -51,6 +58,8 @@ jobs:
           echo "--------------------------硬盘信息--------------------------"
           echo "硬盘数量: $(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
 
+
+
       # 配置环境
       - name: Initialization environment
         env:
@@ -58,19 +67,15 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           docker rmi $(docker images -q) || true
-          sudo docker image prune --all --force
+          sudo docker image prune --all --force || true
           sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-            bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
-            g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
-            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
-            libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
-            ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
-            python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
-            upx-ucl unzip vim wget xmlto xxd zlib1g-dev btrfs-progs libfuse-dev
-          sudo -E apt-get -qq autoremove --purge
-          sudo -E apt-get -qq clean
+          sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
+          sudo -E apt-get -y update
+          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          sudo -E systemctl daemon-reload
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get -y clean
+          sudo -E apt-get -y install clang
           sudo timedatectl set-timezone "$TZ"
           sudo mkdir -p /workdir
           sudo chown $USER:$GROUPS /workdir
@@ -80,7 +85,7 @@ jobs:
         working-directory: /workdir
         run: |
           df -hT $PWD
-          git clone $REPO_URL -b $REPO_BRANCH openwrt
+          git clone --depth 1 --filter=blob:none $REPO_URL -b $REPO_BRANCH openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
       # 缓存，加快openwrt编译
@@ -90,7 +95,7 @@ jobs:
           ccache: 'true' # 检查是否缓存 ccache
           #清空缓存
           clean: "false" # 'false' 默认值
-          mixkey: 'R4SE'
+          mixkey: "R4SE-${{ env.REPO_BRANCH }}"
           prefix: ${{ github.workspace }}/openwrt
 
       - name: Load custom feeds
@@ -162,9 +167,9 @@ jobs:
         id: tag
         if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         run: |
-          echo "release_tag=R4SE_$(date +"%Y%m%d%H%M")" >> $GITHUB_OUTPUT
+          echo "release_tag=R4SE-master_$(date +"%Y%m%d%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
-          echo "ImmortalWrt build on $(date +"%Y.%m.%d-%H%M")" > release.txt
+          echo "ImmortalWrt(master) build on $(date +"%Y.%m.%d-%H%M")" > release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Debug upload parameters
@@ -218,3 +223,5 @@ jobs:
           ls -la ${{ env.FIRMWARE }}
           echo "Release tag: ${{ steps.tag.outputs.release_tag }}"
           cat release.txt
+
+

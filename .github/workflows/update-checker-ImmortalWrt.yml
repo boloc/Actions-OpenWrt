@@ -2,23 +2,28 @@ name: Update Checker from ImmortalWrt
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-23.05
+  REPO_BRANCH: master
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: 0 */18 * * *
+    - cron: '0 */18 * * *'
+
+concurrency:
+  group: update-checker-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Get Commit Hash
         id: getHash
         run: |
-          git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
+          git clone --depth 1 --filter=blob:none $REPO_URL -b $REPO_BRANCH .
           echo "commitHash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "Latest commit hash: $(git rev-parse HEAD)"
 
       - name: Compare Commit Hash
         id: cacheHash
