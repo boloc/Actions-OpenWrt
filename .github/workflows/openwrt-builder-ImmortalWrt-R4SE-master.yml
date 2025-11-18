@@ -100,10 +100,12 @@ jobs:
 
       - name: Load custom feeds
         run: |
+          # 确认脚本文件存在
+          ls -la $GITHUB_WORKSPACE/$DIY_P1_SH || { echo "Error: $DIY_P1_SH not found"; exit 1; }
           [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-          chmod +x $DIY_P1_SH
+          chmod +x $GITHUB_WORKSPACE/$DIY_P1_SH
           cd openwrt && pwd
-          $GITHUB_WORKSPACE/$DIY_P1_SH
+          bash $GITHUB_WORKSPACE/$DIY_P1_SH
 
       # 更新 feeds(安装两次包管理，预防第一次安装失败，有些漏掉)
       - name: Update & Install feeds
@@ -116,11 +118,13 @@ jobs:
       # 加载配置
       - name: Load custom configuration
         run: |
+          # 确认脚本文件存在
+          ls -la $GITHUB_WORKSPACE/$DIY_P2_SH || { echo "Error: $DIY_P2_SH not found"; exit 1; }
           [ -e files ] && mv files openwrt/files
           [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-          chmod +x $DIY_P2_SH
+          chmod +x $GITHUB_WORKSPACE/$DIY_P2_SH
           cd openwrt
-          $GITHUB_WORKSPACE/$DIY_P2_SH
+          bash $GITHUB_WORKSPACE/$DIY_P2_SH
 
       # 下载包
       - name: Download package
