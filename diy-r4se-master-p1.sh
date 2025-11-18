@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# R4SE (master) - feeds & TurboACC 定制
+# R4SE (master) - feeds 定制
 
 # 追加 passwall 与 AdGuardHome 的第三方源（避免重复追加）
 if ! grep -q 'passwall_packages' feeds.conf.default; then
