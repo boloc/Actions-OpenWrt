@@ -32,19 +32,19 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # 合并磁盘空间，释放更多构建空间（避免磁盘爆满）
-      # 必须在 checkout 之前执行，否则会清空 workspace
-      - name: Combine disks
-        uses: easimon/maximize-build-space@master # https://github.com/easimon/maximize-build-space
-        with:
-          swap-size-mb: 256
-          temp-reserve-mb: 512
-          root-reserve-mb: 10240
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
+      # # 合并磁盘空间，释放更多构建空间（避免磁盘爆满）
+      # # 必须在 checkout 之前执行，否则会清空 workspace
+      # - name: Combine disks
+      #   uses: easimon/maximize-build-space@master # https://github.com/easimon/maximize-build-space
+      #   with:
+      #     swap-size-mb: 256
+      #     temp-reserve-mb: 512
+      #     root-reserve-mb: 10240
+      #     remove-dotnet: 'true'
+      #     remove-android: 'true'
+      #     remove-haskell: 'true'
+      #     remove-codeql: 'true'
+      #     remove-docker-images: 'true'
 
       - name: Checkout
         uses: actions/checkout@main
