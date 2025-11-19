@@ -26,6 +26,8 @@ env:
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
+  SWAP_SIZE_GB: 8
+  NPM_CONFIG_REGISTRY: https://registry.npmmirror.com
 
 jobs:
   build:
@@ -61,6 +63,9 @@ jobs:
           sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
           sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
           sudo -E apt-get -y update
+          # 执行 ImmortalWrt 官方构建环境初始化脚本
+          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          # 补充安装可能遗漏的依赖
           sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
             bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
             g++-multilib git libgnutls28-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
@@ -68,12 +73,10 @@ jobs:
             libreadline-dev libssl-dev libtool libyaml-dev zlib1g-dev lld llvm lrzsz genisoimage msmtp nano \
             ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
             python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
-            unzip vim wget xmlto xxd zstd libboost-system-dev upx-ucl
-          pip3 install --user pyelftools
+            unzip vim wget xmlto xxd zstd libboost-system-dev upx-ucl libclang-dev mkisofs libncurses5-dev libncursesw5-dev
           sudo -E systemctl daemon-reload
           sudo -E apt-get -y autoremove --purge
           sudo -E apt-get -y clean
-          sudo timedatectl set-timezone "$TZ"
 
       - name: 释放磁盘空间
         uses: jlumbroso/free-disk-space@main
@@ -85,6 +88,18 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
+
+      - name: 配置 Swap 提升编译稳定性
+        run: |
+          if [ ! -f /swapfile ]; then
+            echo "create swapfile ${SWAP_SIZE_GB}G"
+            sudo fallocate -l "${SWAP_SIZE_GB}G" /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+          fi
+          sudo swapon /swapfile
+          echo "SWAP_ON=true" >> $GITHUB_ENV
+          swapon --show
 
       - name: 创建模拟物理磁盘
         run: |
@@ -176,6 +191,12 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
+      - name: 预编译 SmartDNS UI
+        working-directory: ./openwrt
+        run: |
+          make package/feeds/packages/smartdns/clean
+          make package/feeds/packages/smartdns/compile V=sc
+
       # 输出编译信息
       - name: 输出编译信息
         working-directory: ./openwrt
@@ -229,7 +250,7 @@ jobs:
         working-directory: ./openwrt
         run: |
           echo -e "$(nproc) thread compile"
-          make -j$(nproc) || make -j1 || make -j1 V=s
+          make -j$(nproc) V=s || make -j1 V=s
           echo "status=success" >> $GITHUB_OUTPUT
           grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
