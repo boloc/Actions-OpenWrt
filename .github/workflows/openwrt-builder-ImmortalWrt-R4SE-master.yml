@@ -84,6 +84,7 @@ jobs:
           # 安装Node.js LTS版本（自动跟随官方LTS策略）
           curl -fsSL $NODEJS_SETUP_URL | sudo -E bash -
           sudo -E apt-get install -y nodejs
+          hash -r
           node -v
 
       - name: 释放磁盘空间
