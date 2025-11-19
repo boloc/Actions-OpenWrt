@@ -1,4 +1,4 @@
-name: OpenWrt Builder From ImmortalWrt-R4SE-master
+name: 编译 ImmortalWrt R4SE (master分支)
 
 on:
   # 手动触发
@@ -32,24 +32,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # # 合并磁盘空间，释放更多构建空间（避免磁盘爆满）
-      # # 必须在 checkout 之前执行，否则会清空 workspace
-      # - name: Combine disks
-      #   uses: easimon/maximize-build-space@master # https://github.com/easimon/maximize-build-space
-      #   with:
-      #     swap-size-mb: 256
-      #     temp-reserve-mb: 512
-      #     root-reserve-mb: 10240
-      #     remove-dotnet: 'true'
-      #     remove-android: 'true'
-      #     remove-haskell: 'true'
-      #     remove-codeql: 'true'
-      #     remove-docker-images: 'true'
-
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@main
 
-      - name: Check Server Performance
+      - name: 检查服务器性能
         run: |
           echo "警告⚠"
           echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
@@ -65,7 +51,7 @@ jobs:
           echo "硬盘数量: $(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
 
       # 配置环境
-      - name: Initialization environment
+      - name: 初始化编译环境
         env:
           # 非交互式安装
           DEBIAN_FRONTEND: noninteractive
@@ -76,23 +62,54 @@ jobs:
           sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
           sudo -E apt-get -y update
           sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          pip3 install --user pyelftools
           sudo -E systemctl daemon-reload
           sudo -E apt-get -y autoremove --purge
           sudo -E apt-get -y clean
           sudo timedatectl set-timezone "$TZ"
+
+      - name: 释放磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: 创建模拟物理磁盘
+        run: |
+          mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
+          root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
+          sudo truncate -s "${mnt_size}"G /mnt/mnt.img
+          sudo truncate -s "${root_size}"G /root.img
+          sudo losetup /dev/loop6 /mnt/mnt.img
+          sudo losetup /dev/loop7 /root.img
+          sudo pvcreate /dev/loop6
+          sudo pvcreate /dev/loop7
+          sudo vgcreate github /dev/loop6 /dev/loop7
+          sudo lvcreate -n runner -l 100%FREE github
+          sudo mkfs.xfs /dev/github/runner
           sudo mkdir -p /workdir
-          sudo chown $USER:$GROUPS /workdir
+          sudo mount /dev/github/runner /workdir
+          sudo chown -R $USER:$GROUPS /workdir
+          df -Th
 
       # clone源码并且创建软链
-      - name: Clone source code
+      - name: 克隆源码
         working-directory: /workdir
         run: |
           df -hT $PWD
           git clone --depth 1 --filter=blob:none $REPO_URL -b $REPO_BRANCH openwrt
+          TOOLCHAIN_HASH=$(cd openwrt && git log --pretty=tformat:'%h' -n1 tools toolchain || echo none)
+          echo "TOOLCHAIN_HASH=$TOOLCHAIN_HASH" >> $GITHUB_ENV
+          echo "$TOOLCHAIN_HASH" > openwrt/.toolchain.hash
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
       # 缓存，加快openwrt编译
-      - name: Cache
+      - name: 加载缓存
         uses: stupidloud/cachewrtbuild@main # https://github.com/stupidloud/cachewrtbuild
         with:
           ccache: 'true' # 检查是否缓存 ccache
@@ -101,7 +118,7 @@ jobs:
           mixkey: "R4SE-${{ env.REPO_BRANCH }}"
           prefix: ${{ github.workspace }}/openwrt
 
-      - name: Load custom feeds
+      - name: 加载自定义feeds
         run: |
           # 确认脚本文件存在
           ls -la $GITHUB_WORKSPACE/$DIY_P1_SH || { echo "Error: $DIY_P1_SH not found"; exit 1; }
@@ -111,16 +128,28 @@ jobs:
           bash $GITHUB_WORKSPACE/$DIY_P1_SH
 
       # 更新 feeds(安装两次包管理，预防第一次安装失败，有些漏掉)
-      - name: Update & Install feeds
+      - name: 更新并安装feeds
         working-directory: ./openwrt
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           ./scripts/feeds install -a
 
-      # 加载配置
-      - name: Load custom configuration
+      # 更新时区、编译时间
+      - name: 更新时区和编译时间
+        id: date
         run: |
+          sudo timedatectl set-timezone "$TZ"
+          echo "FILE_TIME=$(date +"%m-%d %H.%M")" >> $GITHUB_ENV
+          echo "FILE_TIME1=$(date "+%Y年%m月%d日-%H点%M分")" >> $GITHUB_ENV
+          echo "编译开始时间..."
+          START_TIME=`date +'%Y-%m-%d %H:%M:%S'`
+          echo "START_SECONDS=$(date --date="$START_TIME" +%s)" >> $GITHUB_ENV
+
+      # 加载配置
+      - name: 加载自定义配置
+        run: |
+          echo "写入配置文件..."
           # 确认脚本文件存在
           ls -la $GITHUB_WORKSPACE/$DIY_P2_SH || { echo "Error: $DIY_P2_SH not found"; exit 1; }
           [ -e files ] && mv files openwrt/files
@@ -130,7 +159,7 @@ jobs:
           bash $GITHUB_WORKSPACE/$DIY_P2_SH
 
       # 下载包
-      - name: Download package
+      - name: 下载编译依赖
         id: package
         working-directory: ./openwrt
         # 添加工具链初始化步骤
@@ -140,8 +169,55 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
+      # 输出编译信息
+      - name: 输出编译信息
+        working-directory: ./openwrt
+        run: |
+          echo
+          echo " 系统空间      类型   总数  已用  可用 使用率"
+          df -hT $PWD
+          echo
+          echo "=========================================="
+          echo
+          echo "    CPU物理数量:$(cat /proc/cpuinfo| grep "physical id"| sort| uniq| wc -l)"
+          echo "    CPU核心及版本信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c)"
+          echo
+          echo "=========================================="
+          echo
+          ZZZ="package/lean/default-settings/files/zzz-default-settings"
+          if [ -f "$ZZZ" ]; then
+            echo "    当前编译版本：$(cat $ZZZ|grep DISTRIB_REVISION= | sed 's/^.\{24\}//g' | sed 's/.\{26\}$//')"
+          fi
+          KERNEL_VER=$(grep 'KERNEL_PATCHVER:=' target/linux/*/Makefile 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ')
+          if [ -n "$KERNEL_VER" ]; then
+            echo "KERNEL_PATCHVER=$KERNEL_VER" >> $GITHUB_ENV
+            echo "    内核版本：$KERNEL_VER"
+          fi
+          echo "    源码分支：${{ env.REPO_BRANCH }}"
+          echo "    编译时间：${{ env.FILE_TIME1 }}"
+          echo
+          echo "=========================================="
+          grep -i CONFIG_PACKAGE_luci-app .config | grep  -v \# > Plug-in
+          grep -i CONFIG_PACKAGE_luci-theme .config | grep  -v \# >> Plug-in
+          sed -i '/INCLUDE/d' Plug-in > /dev/null 2>&1
+          sed -i 's/CONFIG_PACKAGE_/、/g' Plug-in
+          sed -i '/Transparent_Proxy/d' Plug-in > /dev/null 2>&1
+          sed -i 's/=y/\ /g' Plug-in
+          awk '$0=NR$0' Plug-in > Plug-2
+          awk '{print "  " $0}' Plug-2 > Plug-in
+          PLUGIN_LIST=$(cat Plug-in)
+          echo "PLUGIN_LIST<<EOF" >> $GITHUB_ENV
+          echo "$PLUGIN_LIST" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo
+          echo "      已选插件列表"
+          cat Plug-in
+          rm -rf {Plug-in,Plug-2}
+          echo
+          echo "=========================================="
+
       # 编译固件
-      - name: Compile the firmware
+      - name: 编译固件
         id: compile
         working-directory: ./openwrt
         run: |
@@ -151,9 +227,16 @@ jobs:
           grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
           echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+          echo "编译完成时间..."
+          START_SECONDS=${{ env.START_SECONDS }}
+          END_TIME=`date +'%Y-%m-%d %H:%M:%S'`
+          END_SECONDS=$(date --date="$END_TIME" +%s)
+          SECONDS=$((END_SECONDS-START_SECONDS))
+          HOUR=$(( $SECONDS/3600 )) && MIN=$(( ($SECONDS-${HOUR}*3600)/60 )) && SEC=$(( $SECONDS-${HOUR}*3600-${MIN}*60 ))
+          echo "BUILD_TIME=${HOUR}时${MIN}分${SEC}秒" >> $GITHUB_ENV
 
       # 删除多余内容
-      - name: Organize files
+      - name: 整理固件文件
         id: organize
         if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
@@ -163,46 +246,56 @@ jobs:
           echo "status=success" >> $GITHUB_OUTPUT
 
       # 上传固件到artifacts
-      - name: Upload firmware directory
+      - name: 上传固件到Artifacts
         uses: actions/upload-artifact@main
         if: steps.organize.outputs.status == 'success' && !cancelled()
         with:
           name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
           path: ${{ env.FIRMWARE }}
 
+      # 检查空间使用情况
+      - name: 检查空间使用情况
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          echo "======================="
+          echo "Space usage:"
+          echo "======================="
+          df -hT
+          echo "======================="
+          du -h --max-depth=1 openwrt/ --exclude=build_dir --exclude=bin
+          du -h --max-depth=1 openwrt/build_dir
+          du -h --max-depth=1 openwrt/bin
+
       # 创建版本releases
-      - name: Generate release tag
+      - name: 生成Release标签
         id: tag
         if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         run: |
           echo "release_tag=R4SE-master_$(date +"%Y%m%d%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
-          echo "ImmortalWrt(master) build on $(date +"%Y.%m.%d-%H%M")" > release.txt
+          echo "★ 源码: ${{ env.REPO_URL }}" >> release.txt
+          echo "★ 分支: ${{ env.REPO_BRANCH }}" >> release.txt
+          echo "" >> release.txt
+          echo "🖥 内核版本：${{ env.KERNEL_PATCHVER }}" >> release.txt
+          echo "🎈 编译时间：${{ env.FILE_TIME1 }}" >> release.txt
+          echo "⏰ 编译用时：${{ env.BUILD_TIME }}" >> release.txt
+          echo "" >> release.txt
+          echo "🔌 插件列表：" >> release.txt
+          echo "${{ env.PLUGIN_LIST }}" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
-      - name: Debug upload parameters
-        run: |
-          echo "Tag Name: ${{ steps.tag.outputs.release_tag }}"
-          echo "Body Path: release.txt"
-          echo "FIRMWARE path: ${{ env.FIRMWARE }}"
-          ls -la ${{ env.FIRMWARE }}/*
-
       # 上传固件到发布
-      - name: Upload firmware to release
-        # (2024-12-28为止,master版本有问题,v2版本正常，具体看issue)
-        # uses: softprops/action-gh-release@master # https://github.com/softprops/action-gh-release
+      - name: 上传固件到Release
         uses: softprops/action-gh-release@v2 # https://github.com/softprops/action-gh-release
         if: steps.tag.outputs.status == 'success' && !cancelled()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
           body_path: release.txt
           files: ${{ env.FIRMWARE }}/*
-          # verbose: true # 添加 verbose 选项以获取更多调试信息
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # 清除工作流
-      - name: Delete workflow runs
+      - name: 删除旧的工作流运行
         uses: Mattraks/delete-workflow-runs@main # https://github.com/Mattraks/delete-workflow-runs
         with:
           token: ${{ github.token }}
@@ -211,7 +304,7 @@ jobs:
           keep_minimum_runs: 2
 
       # 移除老版本releases
-      - name: Remove old Releases
+      - name: 删除旧的Releases
         uses: dev-drprasad/delete-older-releases@master # https://github.com/dev-drprasad/delete-older-releases (项目已经不再维护,但是没更好的替代)
         if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
@@ -219,17 +312,3 @@ jobs:
           delete_tags: true # 删除tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: List firmware files
-        run: |
-          echo "Listing files in firmware directory:"
-          ls -la ${{ env.FIRMWARE }}
-
-      - name: Debug release files
-        run: |
-          echo "Files to be uploaded:"
-          ls -la ${{ env.FIRMWARE }}
-          echo "Release tag: ${{ steps.tag.outputs.release_tag }}"
-          cat release.txt
-
-
