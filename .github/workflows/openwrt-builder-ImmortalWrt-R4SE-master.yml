@@ -26,8 +26,7 @@ env:
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
-  SWAP_SIZE_GB: 8
-  NPM_CONFIG_REGISTRY: https://registry.npmmirror.com
+  NODEJS_SETUP_URL: https://deb.nodesource.com/setup_lts.x
 
 jobs:
   build:
@@ -76,8 +75,16 @@ jobs:
             python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
             unzip vim wget xmlto xxd zstd libboost-system-dev upx-ucl libclang-dev mkisofs libncurses5-dev libncursesw5-dev
           sudo -E systemctl daemon-reload
+
+          # 卸载老版本Node.js
+          sudo -E apt-get -y remove nodejs npm || true
           sudo -E apt-get -y autoremove --purge
           sudo -E apt-get -y clean
+
+          # 安装Node.js LTS版本（自动跟随官方LTS策略）
+          curl -fsSL $NODEJS_SETUP_URL | sudo -E bash -
+          sudo -E apt-get install -y nodejs
+          node -v
 
       - name: 释放磁盘空间
         uses: jlumbroso/free-disk-space@main
@@ -89,18 +96,6 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
-
-      - name: 配置 Swap 提升编译稳定性
-        run: |
-          if [ ! -f /swapfile ]; then
-            echo "create swapfile ${SWAP_SIZE_GB}G"
-            sudo fallocate -l "${SWAP_SIZE_GB}G" /swapfile
-            sudo chmod 600 /swapfile
-            sudo mkswap /swapfile
-          fi
-          sudo swapon /swapfile
-          echo "SWAP_ON=true" >> $GITHUB_ENV
-          swapon --show
 
       - name: 创建模拟物理磁盘
         run: |
