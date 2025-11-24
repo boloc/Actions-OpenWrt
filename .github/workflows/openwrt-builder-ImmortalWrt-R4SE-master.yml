@@ -193,6 +193,17 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
+      # 修复 Python3 编译问题
+      - name: 修复 Python3 编译问题
+        working-directory: ./openwrt
+        run: |
+          # 禁用 Python host 编译时的 profile-guided optimization (PGO) 测试
+          # 这些测试在 GitHub Actions 容器环境中不稳定
+          if [ -f "feeds/packages/lang/python/python3/Makefile" ]; then
+            sed -i 's/--enable-optimizations/--disable-test-modules/g' feeds/packages/lang/python/python3/Makefile
+            echo "已禁用 Python3 的优化测试"
+          fi
+
       # - name: 预编译工具链和 SmartDNS
       #   working-directory: ./openwrt
       #   run: |
