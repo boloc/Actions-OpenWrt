@@ -187,11 +187,10 @@ jobs:
         id: package
         working-directory: ./openwrt
         env:
-          # 设置内核配置为非交互模式，所有新选项使用默认值
           KCONFIG_NOTIMESTAMP: "1"
         # 添加工具链初始化步骤
         run: |
-          yes "" | make oldconfig
+          make defconfig
           make download -j$(nproc)
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
@@ -272,14 +271,13 @@ jobs:
         id: compile
         working-directory: ./openwrt
         env:
-          # 设置内核配置为非交互模式
           KCONFIG_NOTIMESTAMP: "1"
         run: |
           echo -e "使用 $(($(nproc) + 1)) 线程编译"
-          # 第一次：快速编译（无详细日志） make -j$(nproc) V=s (输出日志)
-          make -j$(($(nproc) + 1)) || \
+          # 第一次：快速编译（无详细日志），使用 yes "" 自动回答所有配置问题
+          yes "" | make -j$(($(nproc) + 1)) || \
           # 失败后：单线程 + 详细日志
-          make -j1 V=s
+          yes "" | make -j1 V=s
           echo "status=success" >> $GITHUB_OUTPUT
           grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
