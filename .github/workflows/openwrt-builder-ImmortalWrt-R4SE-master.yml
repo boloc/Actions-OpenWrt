@@ -186,6 +186,9 @@ jobs:
       - name: 下载编译依赖
         id: package
         working-directory: ./openwrt
+        env:
+          # 设置内核配置为非交互模式，所有新选项使用默认值
+          KCONFIG_NOTIMESTAMP: "1"
         # 添加工具链初始化步骤
         run: |
           make defconfig
@@ -268,6 +271,9 @@ jobs:
       - name: 编译固件
         id: compile
         working-directory: ./openwrt
+        env:
+          # 设置内核配置为非交互模式
+          KCONFIG_NOTIMESTAMP: "1"
         run: |
           echo -e "使用 $(($(nproc) + 1)) 线程编译"
           # 第一次：快速编译（无详细日志） make -j$(nproc) V=s (输出日志)
