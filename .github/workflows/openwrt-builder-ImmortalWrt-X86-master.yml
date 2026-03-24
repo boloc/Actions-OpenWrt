@@ -1,4 +1,4 @@
-name: 编译 ImmortalWrt R4SE (master分支)
+name: 编译 ImmortalWrt X86 (master分支)
 
 on:
   # 手动触发
@@ -12,16 +12,16 @@ on:
 
 # 避免同一分支重复排队，新的构建会自动取消旧的
 concurrency:
-  group: r4se-master-${{ github.ref }}
+  group: x86-master-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: master
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: .config.R4SE
-  DIY_P1_SH: diy-r4se-p1.sh
-  DIY_P2_SH: diy-r4se-p2.sh
+  CONFIG_FILE: .config.X86
+  DIY_P1_SH: diy-x86-p1.sh
+  DIY_P2_SH: diy-x86-p2.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -134,7 +134,7 @@ jobs:
           ccache: 'true' # 检查是否缓存 ccache
           #清空缓存
           clean: "false" # 'false' 默认值
-          mixkey: "R4SE-${{ env.REPO_BRANCH }}"
+          mixkey: "X86-${{ env.REPO_BRANCH }}"
           prefix: ${{ github.workspace }}/openwrt
 
       - name: 加载自定义feeds
@@ -188,7 +188,6 @@ jobs:
         working-directory: ./openwrt
         env:
           KCONFIG_NOTIMESTAMP: "1"
-        # 添加工具链初始化步骤
         run: |
           make defconfig
           make download -j$(nproc)
@@ -205,19 +204,6 @@ jobs:
             sed -i 's/--enable-optimizations/--disable-test-modules/g' feeds/packages/lang/python/python3/Makefile
             echo "已禁用 Python3 的优化测试"
           fi
-
-      # - name: 预编译工具链和 SmartDNS
-      #   working-directory: ./openwrt
-      #   run: |
-      #     echo "开始编译工具链..."
-      #     make tools/install -j$(($(nproc) + 1))
-      #     echo "开始编译 toolchain..."
-      #     make toolchain/install -j$(($(nproc) + 1))
-      #     echo "预编译 SmartDNS（包含 Rust 工具链和 UI）..."
-      #     # 不用 clean，直接编译（避免重复编译）
-      #     # 不用 V=sc，加快速度
-      #     make package/feeds/packages/smartdns/compile -j$(($(nproc) + 1)) || echo "SmartDNS 预编译失败，将在主编译时重试"
-      #     echo "预编译完成"
 
       # 输出编译信息
       - name: 输出编译信息
@@ -326,7 +312,7 @@ jobs:
         id: tag
         if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         run: |
-          echo "release_tag=R4SE-master_$(date +"%Y%m%d%H%M")" >> $GITHUB_OUTPUT
+          echo "release_tag=X86-master_$(date +"%Y%m%d%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
           echo "★ 源码: ${{ env.REPO_URL }}" >> release.txt
           echo "★ 分支: ${{ env.REPO_BRANCH }}" >> release.txt

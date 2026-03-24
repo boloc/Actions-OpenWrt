@@ -27,7 +27,7 @@ jobs:
 
       - name: Compare Commit Hash
         id: cacheHash
-        uses: actions/cache@main # https://github.com/actions/cache
+        uses: actions/cache@v4 # https://github.com/actions/cache
         with:
           path: .commitHash
           key: commitHash_${{ steps.getHash.outputs.commitHash }}
@@ -39,17 +39,8 @@ jobs:
 
       - name: Trigger build
         if: steps.cacheHash.outputs.cache-hit != 'true'
-        uses: peter-evans/repository-dispatch@main # https://github.com/peter-evans/repository-dispatch
-        with:
-          token: ${{ github.token }}
-          # 触发构建ImmortalWrt脚本
-          event-type: Source Code Update ImmortalWrt
-
-      # 清除工作流
-      - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@main # https://github.com/Mattraks/delete-workflow-runs
-        with:
-          token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          retain_days: 2
-          keep_minimum_runs: 2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/dispatches \
+            -f event_type='Source Code Update ImmortalWrt'
