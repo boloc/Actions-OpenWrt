@@ -15,6 +15,10 @@ concurrency:
   group: x86-master-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  actions: read
+
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: master
@@ -31,6 +35,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 360
 
     steps:
       - name: 检出代码
@@ -50,12 +55,12 @@ jobs:
           sudo lshw -short -C memory 2>/dev/null | grep GiB || echo "lshw 不可用，跳过内存详情"
           echo
           echo "--------------------------硬盘信息--------------------------"
-          echo "硬盘数量: $(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
+          echo "硬盘数量: $(ls /dev/sd* 2>/dev/null | grep -v '[1-9]' | wc -l || echo 0)"
+          df -hT
 
-      # 配置环境
+      # 配置环境（Ubuntu 22.04 Runner：官方 init + 补漏。不要装 Debian 的 npm，会和 NodeSource 冲突）
       - name: 初始化编译环境
         env:
-          # 非交互式安装
           DEBIAN_FRONTEND: noninteractive
         run: |
           docker rmi $(docker images -q) || true
@@ -63,29 +68,29 @@ jobs:
           sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
           sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
           sudo -E apt-get -y update
-          # 执行 ImmortalWrt 官方构建环境初始化脚本
-          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
-          # 补充安装可能遗漏的依赖
-          sudo -E apt-get -y install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+          sudo DEBIAN_FRONTEND=noninteractive bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install --ignore-missing ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
             bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
-            g++-multilib git libgnutls28-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+            g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
             libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
-            libreadline-dev libssl-dev libtool libyaml-dev zlib1g-dev lld llvm lrzsz genisoimage msmtp nano \
+            libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs \
             ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
             python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs \
-            unzip vim wget xmlto xxd zstd libboost-system-dev upx-ucl libclang-dev mkisofs libncurses5-dev libncursesw5-dev
+            upx-ucl unzip wget xmlto xxd zlib1g-dev zstd
           sudo -E systemctl daemon-reload
-
-          # 卸载老版本Node.js
-          sudo -E apt-get -y remove nodejs npm || true
-          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get -y autoremove --purge || true
           sudo -E apt-get -y clean
 
-          # 安装Node.js LTS版本（自动跟随官方LTS策略）
-          curl -fsSL $NODEJS_SETUP_URL | sudo -E bash -
-          sudo -E apt-get install -y nodejs
-          hash -r
+          # Ubuntu 22.04 自带 Node 过旧；官方脚本若已装 Node 18+ 则跳过 NodeSource
+          NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1 || echo 0)
+          if [ "${NODE_MAJOR:-0}" -lt 18 ]; then
+            sudo -E apt-get -y remove nodejs npm || true
+            curl -fsSL "$NODEJS_SETUP_URL" | sudo -E bash -
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+            hash -r
+          fi
           node -v
+          npm -v || true
 
       - name: 释放磁盘空间
         uses: jlumbroso/free-disk-space@main
@@ -177,7 +182,8 @@ jobs:
           # 确认脚本文件存在
           ls -la $GITHUB_WORKSPACE/$DIY_P2_SH || { echo "Error: $DIY_P2_SH not found"; exit 1; }
           [ -e files ] && mv files openwrt/files
-          [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+          [ -f "$GITHUB_WORKSPACE/$CONFIG_FILE" ] || { echo "Error: 缺少 $CONFIG_FILE"; exit 1; }
+          cp -f "$GITHUB_WORKSPACE/$CONFIG_FILE" openwrt/.config
           chmod +x $GITHUB_WORKSPACE/$DIY_P2_SH
           cd openwrt
           bash $GITHUB_WORKSPACE/$DIY_P2_SH
@@ -193,13 +199,12 @@ jobs:
           make download -j$(nproc)
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
+          make download -j$(nproc)
 
-      # 修复 Python3 编译问题
+      # Python3 host：CI 容器内存小，PGO（--enable-optimizations）容易挂；本机编译不用这步
       - name: 修复 Python3 编译问题
         working-directory: ./openwrt
         run: |
-          # 禁用 Python host 编译时的 profile-guided optimization (PGO) 测试
-          # 这些测试在 GitHub Actions 容器环境中不稳定
           if [ -f "feeds/packages/lang/python/python3/Makefile" ]; then
             sed -i 's/--enable-optimizations/--disable-test-modules/g' feeds/packages/lang/python/python3/Makefile
             echo "已禁用 Python3 的优化测试"
@@ -276,6 +281,17 @@ jobs:
           HOUR=$(( $SECONDS/3600 )) && MIN=$(( ($SECONDS-${HOUR}*3600)/60 )) && SEC=$(( $SECONDS-${HOUR}*3600-${MIN}*60 ))
           echo "BUILD_TIME=${HOUR}时${MIN}分${SEC}秒" >> $GITHUB_ENV
 
+      - name: 编译失败时上传日志
+        if: failure() && steps.compile.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: compile-failure-logs
+          path: |
+            openwrt/.config
+            openwrt/logs
+          if-no-files-found: ignore
+          retention-days: 7
+
       # 删除多余内容
       - name: 整理固件文件
         id: organize
@@ -285,6 +301,10 @@ jobs:
           rm -rf packages *.buildinfo *.manifest *.bin sha256sums
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: 列出产物
+        if: steps.organize.outputs.status == 'success' && !cancelled()
+        run: ls -lh "${{ env.FIRMWARE }}"
 
       # 上传固件到artifacts
       - name: 上传固件到Artifacts
@@ -343,12 +363,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          mapfile -t TAGS < <(gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName')
+          mapfile -t TAGS < <(gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName' | grep '^X86-master_' || true)
           if [ "${#TAGS[@]}" -le 3 ]; then
-            echo "Release数量为 ${#TAGS[@]}，无需清理"
+            echo "X86 Release数量为 ${#TAGS[@]}，无需清理"
             exit 0
           fi
-          echo "当前Release数量: ${#TAGS[@]}，开始删除第4个及之后的旧版本..."
+          echo "当前 X86 Release数量: ${#TAGS[@]}，开始删除第4个及之后的旧版本..."
           for tag in "${TAGS[@]:3}"; do
             echo "删除旧Release: $tag"
             gh release delete "$tag" --yes --cleanup-tag || true
