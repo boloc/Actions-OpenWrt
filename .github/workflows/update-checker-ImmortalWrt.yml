@@ -27,7 +27,7 @@ jobs:
 
       - name: Compare Commit Hash
         id: cacheHash
-        uses: actions/cache@v4 # https://github.com/actions/cache
+        uses: actions/cache@main # https://github.com/actions/cache
         with:
           path: .commitHash
           key: commitHash_${{ steps.getHash.outputs.commitHash }}
