@@ -7,4 +7,4 @@ sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci-l
 sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci-nginx/Makefile 2>/dev/null || true
 
 # 修改默认 IP 地址为 192.168.10.3
-sed -i 's/192.168.1.1/192.168.10.4/g' package/base-files/files/bin/config_generate 2>/dev/null || true
+sed -i 's/192.168.1.1/192.168.10.2/g' package/base-files/files/bin/config_generate 2>/dev/null || true

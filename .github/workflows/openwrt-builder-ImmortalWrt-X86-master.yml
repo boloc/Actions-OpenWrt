@@ -10,10 +10,10 @@ on:
   repository_dispatch:
     types: [Source Code Update ImmortalWrt]
 
-# 避免同一分支重复排队，新的构建会自动取消旧的
+# 同一分支同时只跑一个；已开始的编完，后来的排队等
 concurrency:
   group: x86-master-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
